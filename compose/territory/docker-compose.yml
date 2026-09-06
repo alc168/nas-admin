@@ -1,0 +1,36 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      - DATABASE_URL=sqlite:////data/territory.db
+      - DEFAULT_LIST_COUNT=${DEFAULT_LIST_COUNT:-5}
+      - RESEARCH_ENABLED=${RESEARCH_ENABLED:-true}
+      - RESEARCH_INTERVAL_HOURS=${RESEARCH_INTERVAL_HOURS:-24}
+      - RESEARCH_RUN_ON_STARTUP=${RESEARCH_RUN_ON_STARTUP:-true}
+      - RESEARCH_STARTUP_DELAY_MINUTES=${RESEARCH_STARTUP_DELAY_MINUTES:-5}
+      - SOURCE_GOOGLE_NEWS_ENABLED=${SOURCE_GOOGLE_NEWS_ENABLED:-true}
+      - SOURCE_GDELT_ENABLED=${SOURCE_GDELT_ENABLED:-true}
+      - SOURCE_PRESS_RELEASE_ENABLED=${SOURCE_PRESS_RELEASE_ENABLED:-true}
+      # Off by default per project decision - set to true and provide a key below to enable.
+      - SOURCE_NEWSAPI_ENABLED=${SOURCE_NEWSAPI_ENABLED:-false}
+      - NEWSAPI_KEY=${NEWSAPI_KEY:-}
+      # Off by default per project decision - set to true and provide a key below to enable
+      # LLM-assisted signal classification/summaries via the Anthropic API.
+      - ANTHROPIC_ENABLED=${ANTHROPIC_ENABLED:-false}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - REQUEST_DELAY_SECONDS=${REQUEST_DELAY_SECONDS:-1.5}
+    volumes:
+      # Point DATA_PATH at a folder on your NAS storage volume to persist
+      # the SQLite database across container restarts/updates.
+      - ${DATA_PATH:-./backend/data}:/data
+    ports:
+      - "${BACKEND_PORT:-8801}:8000"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-8802}:80"
+    restart: unless-stopped

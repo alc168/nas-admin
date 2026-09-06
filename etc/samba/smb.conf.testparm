@@ -1,0 +1,59 @@
+# Global parameters
+[global]
+	client min protocol = SMB2
+	log file = /var/log/samba/log.%m
+	logging = file
+	map to guest = Bad User
+	max log size = 1000
+	obey pam restrictions = Yes
+	pam password change = Yes
+	panic action = /usr/share/samba/panic-action %d
+	passwd chat = *Enter\snew\s*\spassword:* %n\n *Retype\snew\s*\spassword:* %n\n *password\supdated\ssuccessfully* .
+	passwd program = /usr/bin/passwd %u
+	server min protocol = SMB2
+	server role = standalone server
+	server string = %h server (Samba, Ubuntu)
+	unix password sync = Yes
+	usershare allow guests = Yes
+	fruit:metadata = stream
+	fruit:aapl = yes
+	fruit:nfs_aces = no
+	idmap config * : backend = tdb
+	vfs objects = catia fruit streams_xattr
+
+
+[homes]
+	browseable = No
+	comment = Private Home Directory
+	create mask = 0600
+	directory mask = 0700
+	read only = No
+	valid users = %S
+
+
+[printers]
+	browseable = No
+	comment = All Printers
+	create mask = 0700
+	path = /var/tmp
+	printable = Yes
+
+
+[print$]
+	comment = Printer Drivers
+	path = /var/lib/samba/printers
+
+
+[mnt_tmshare]
+	create mask = 0664
+	directory mask = 0775
+	force user = tm
+	path = /mnt
+	read only = No
+	valid users = tm
+	fruit:delete_empty_adfiles = yes
+	fruit:wipe_intentionally_left_blank_rfork = yes
+	fruit:veto_appledouble = no
+	fruit:posix_rename = yes
+	fruit:model = MacPro
+	fruit:metadata = stream

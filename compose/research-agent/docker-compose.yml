@@ -1,0 +1,121 @@
+name: research-agent
+
+services:
+  # L2 Model Gateway: one OpenAI-compatible endpoint that routes to free cloud LLMs
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: litellm
+    restart: unless-stopped
+    cpus: "0.5"
+    mem_limit: 1536m
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./litellm-config.yaml:/app/config.yaml:ro
+      - ./litellm-logs:/app/logs
+    env_file:
+      - .env
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    networks:
+      - research-network
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness')\""
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+
+  # L3 Search tool: self-hosted metasearch with a JSON API
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    cpus: "0.5"
+    mem_limit: 512m
+    ports:
+      - "8088:8080"
+    environment:
+      - SEARXNG_SETTINGS_PATH=/etc/searxng/settings.yml
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - ./searxng/data:/etc/searxng/data
+    networks:
+      - research-network
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "wget -qO- http://localhost:8080/healthz >/dev/null 2>&1 || exit 1"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # L4 Orchestration: GPT-Researcher agent
+  gpt-researcher:
+    image: gptresearcher/gpt-researcher:latest
+    container_name: gpt-researcher
+    restart: unless-stopped
+    cpus: "1.0"
+    mem_limit: 1536m
+    command: >
+      bash -c "uvicorn main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+    environment:
+      - TZ=Australia/Melbourne
+      - OPENAI_BASE_URL=http://litellm:4000
+      - OPENAI_API_KEY=sk-local-anything
+      - HOME=/home/gpt-researcher
+      - EMBEDDING=google_genai:gemini-embedding-2
+      - GOOGLE_API_KEY=${GEMINI_API_KEY}
+      - FAST_LLM=openai:research-fast
+      - SMART_LLM=openai:research-smart
+      - STRATEGIC_LLM=openai:research-smart
+      - RETRIEVER=searx
+      - SEARX_URL=http://searxng:8080
+      - AGENT_ROLE=You are a senior academic research analyst producing university-grade, comprehensive, evidence-based reports. Your analysis must be critical, compare and contrast claims, identify contradictions and gaps in the literature, and synthesize insights beyond what a simple web search or a basic LLM prompt would produce. Cite sources and maintain a formal, analytical tone.
+      - TOTAL_WORDS=3000
+      - MAX_SUBTOPICS=6
+      - MAX_ITERATIONS=6
+      - DEEP_RESEARCH_BREADTH=5
+      - DEEP_RESEARCH_DEPTH=3
+      - DEEP_RESEARCH_CONCURRENCY=6
+      - MAX_SEARCH_RESULTS_PER_QUERY=10
+      - SMART_TOKEN_LIMIT=8000
+      - STRATEGIC_TOKEN_LIMIT=8000
+      - FAST_TOKEN_LIMIT=4000
+      - SUMMARY_TOKEN_LIMIT=1500
+      - BROWSE_CHUNK_MAX_LENGTH=12000
+      - TEMPERATURE=0.25
+      - CURATE_SOURCES=true
+      - SIMILARITY_THRESHOLD=0.42
+      - REPORT_FORMAT=APA
+      - LANGUAGE=english
+    depends_on:
+      - litellm
+      - searxng
+    volumes:
+      - ./uploads:/usr/src/app/uploads
+      - ./gpt-cache:/home/gpt-researcher/.local
+      - ${REPORT_OUTPUT_DIR:-/home/tm/research-agent/reports}:/usr/src/app/outputs
+      - ./prefill/embeddings.py:/usr/src/app/gpt_researcher/memory/embeddings.py:ro
+      - ./prefill/google_genai_embeddings.py:/usr/src/app/gpt_researcher/memory/google_genai_embeddings.py:ro
+      - ./prefill/websocket_manager.py:/usr/src/app/backend/server/websocket_manager.py:ro
+      - ./prefill/server.py:/usr/src/app/backend/server/server.py:ro
+      - ./prefill/server_utils.py:/usr/src/app/backend/server/server_utils.py:ro
+      - ./prefill/config.py:/usr/src/app/backend/server/config.py:ro
+      - ./prefill/agent_runner.py:/usr/src/app/backend/server/agent_runner.py:ro
+      - ./prefill/detailed_report.py:/usr/src/app/backend/report_type/detailed_report/detailed_report.py:ro
+      - ./prefill/index.html:/usr/src/app/frontend/index.html:ro
+      - ./prefill/scripts.js:/usr/src/app/frontend/scripts.js:ro
+      - ./prefill/scripts.js:/usr/src/app/frontend/scripts.js:ro
+      - ./prefill/prefill.js:/usr/src/app/frontend/prefill.js:ro
+    networks:
+      - research-network
+
+networks:
+  research-network:
+    name: research-network
+    driver: bridge

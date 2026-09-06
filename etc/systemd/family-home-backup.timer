@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly household home-directory backup
+
+[Timer]
+OnCalendar=*-*-* 02:15:00 Australia/Melbourne
+RandomizedDelaySec=15m
+Persistent=true
+Unit=family-home-backup.service
+
+[Install]
+WantedBy=timers.target

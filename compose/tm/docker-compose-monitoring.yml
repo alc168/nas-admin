@@ -1,0 +1,89 @@
+# Network Monitoring Stack - Simplified
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    user: "1000:1000"
+    volumes:
+      - /home/tm/config/prometheus:/etc/prometheus
+      - /home/tm/data/prometheus:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=365d
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    user: "1000:1000"
+    volumes:
+      - /home/tm/config/alertmanager:/etc/alertmanager
+      - /home/tm/data/alertmanager:/alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    ports:
+      - "9093:9093"
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    user: "1000:1000"
+    volumes:
+      - /home/tm/config/grafana:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=\${GF_SECURITY_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://192.168.0.172:3001
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - monitoring
+
+  node_exporter:
+    image: prom/node-exporter:latest
+    container_name: node_exporter
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  unpoller:
+    image: ghcr.io/unpoller/unpoller:latest
+    container_name: unpoller
+    restart: unless-stopped
+    ports:
+      - "9130:9130"
+    environment:
+      - UP_UNIFI_DEFAULT_URL=https://192.168.0.250
+      - UP_UNIFI_DEFAULT_USER=prometheus
+      - UP_UNIFI_DEFAULT_PASS=\${UP_UNIFI_DEFAULT_PASS}
+      - UP_UNIFI_DEFAULT_VERIFY_SSL=false
+      - UP_UNIFI_DEFAULT_SAVE_SITES=true
+      - UP_UNIFI_DEFAULT_SAVE_DPI=true
+      - UP_UNIFI_DEFAULT_SAVE_CLIENTS=true
+      - UP_PROMETHEUS_HTTP_LISTEN=0.0.0.0:9130
+      - UP_PROMETHEUS_NAMESPACE=unpoller
+      - UP_INFLUXDB_DISABLE=true
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+    driver: bridge

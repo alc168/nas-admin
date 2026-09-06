@@ -1,0 +1,11 @@
+services:
+  sigen-web:
+    environment:
+      ENABLE_CONTROL: "false"
+      ENABLE_WHATSAPP_ALERTS: "false"
+
+  sigen-scheduler:
+    environment:
+      ENABLE_CONTROL: "false"
+      ENABLE_WHATSAPP_ALERTS: "false"
+

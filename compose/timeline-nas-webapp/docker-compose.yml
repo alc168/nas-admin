@@ -1,0 +1,13 @@
+services:
+  timeline-webapp:
+    build: .
+    container_name: timeline-webapp
+    restart: unless-stopped
+    ports:
+      - "4002:4000"
+    environment:
+      DB_PATH: /data/family_timeline.db
+      TAKEOUT_DIR: /data/takeout
+    volumes:
+      - ./data:/data
+    user: "1000:1000"

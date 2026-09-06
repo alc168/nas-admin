@@ -1,0 +1,10 @@
+[Unit]
+Description=Snapshot household Samba home directories to NVMe
+RequiresMountsFor=/mnt/storage /mnt/NVMe2
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/backup-family-homes
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

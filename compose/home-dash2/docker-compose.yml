@@ -1,0 +1,88 @@
+services:
+  sigen-web:
+    build:
+      context: .
+    ports:
+      - "${WEB_BIND_ADDRESS:-0.0.0.0}:${WEB_PORT:-3000}:3000"
+    env_file:
+      - ${ENV_FILE:-.env}
+    environment:
+      TZ: ${TZ:-Australia/Melbourne}
+      DATA_DIR: /app/data
+      PORT: "3000"
+      V2_MODE: "true"
+      WHATSAPP_BAILEYS_URL: http://sigen-baileys:3001
+      LIFE360_API_URL: http://life360-api:4000
+    volumes:
+      - ${DATA_HOST_DIR:-./data}:/app/data
+    command: python -m sigen_dashboard.web
+    restart: unless-stopped
+    depends_on:
+      - life360-api
+
+  sigen-scheduler:
+    build:
+      context: .
+    env_file:
+      - ${ENV_FILE:-.env}
+    environment:
+      TZ: ${TZ:-Australia/Melbourne}
+      DATA_DIR: /app/data
+      V2_MODE: "true"
+      WHATSAPP_BAILEYS_URL: http://sigen-baileys:3001
+    volumes:
+      - ${DATA_HOST_DIR:-./data}:/app/data
+    command: python -m sigen_dashboard.scheduler
+    restart: unless-stopped
+
+  sigen-baileys:
+    build:
+      context: ./baileys
+    env_file:
+      - ${ENV_FILE:-.env}
+    environment:
+      TZ: ${TZ:-Australia/Melbourne}
+      PORT: "3001"
+      BAILEYS_AUTH_DIR: /app/data/baileys_auth
+    ports:
+      - "${BAILEYS_BIND_ADDRESS:-0.0.0.0}:${BAILEYS_PORT:-3002}:3001"
+    volumes:
+      - ${DATA_HOST_DIR:-./data}:/app/data
+    restart: unless-stopped
+
+  # Life360 remains a separate process because it uses an unofficial external
+  # API. A failure or rate limit here cannot affect the battery controller.
+  life360-poller:
+    build:
+      context: .
+      dockerfile: Dockerfile.life360-poller
+    env_file:
+      - ${LIFE360_ENV_FILE:-life360.env}
+    environment:
+      TZ: ${TZ:-Australia/Melbourne}
+      DATABASE_URL: sqlite:////data/life360.db
+      LOG_LOCATIONS: "false"
+    volumes:
+      - ${LIFE360_DATA_HOST_DIR:-./life360-data}:/data
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # This API is intentionally internal-only: no host port, no credentials,
+  # raw member UUIDs, or raw Life360 payloads cross into the web application.
+  life360-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.life360-api
+    environment:
+      TZ: ${TZ:-Australia/Melbourne}
+      LIFE360_DB_PATH: /data/life360.db
+      LIFE360_DEFAULT_PERSON: ${LIFE360_DEFAULT_PERSON:-Dad}
+    volumes:
+      - ${LIFE360_DATA_HOST_DIR:-./life360-data}:/data:ro
+    expose:
+      - "4000"
+    restart: unless-stopped
