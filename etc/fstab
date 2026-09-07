@@ -7,12 +7,12 @@ UUID=B971-8458 /boot/efi vfat defaults 0 1
 /swap.img    none    swap    sw    0    0
 
 # Hard Drives
-UUID=330c892d-8fda-4b7e-9a7c-ec603b83123b /mnt/disk1 ext4 defaults,noatime,nofail 0 2
-UUID=a368a10f-daf0-4303-9a7b-3a7178af5ea5 /mnt/disk2 ext4 defaults,noatime,nofail 0 2
-UUID=d90600f0-69ef-4c49-8d9e-6527a450cc39 /mnt/disk3 ext4 defaults,noatime,nofail 0 2
-UUID=fa3aa22d-1586-4bd6-9f16-bbf39294fbaa /mnt/disk4 ext4 defaults,noatime,nofail 0 2
-UUID=c1bfffdc-5977-49eb-81da-fcf713d14dfa /mnt/disk5 ext4 defaults,noatime,nofail 0 2
-UUID=b53a26bb-f914-45d8-b172-242e9ab4d3de /mnt/disk6 ext4 defaults,noatime,nofail 0 2
+UUID=330c892d-8fda-4b7e-9a7c-ec603b83123b  /mnt/disk1  ext4  defaults,noatime,nofail,x-systemd.device-timeout=90,x-systemd.mount-timeout=120  0  2
+UUID=a368a10f-daf0-4303-9a7b-3a7178af5ea5  /mnt/disk2  ext4  defaults,noatime,nofail,x-systemd.device-timeout=90,x-systemd.mount-timeout=120  0  2
+UUID=d90600f0-69ef-4c49-8d9e-6527a450cc39  /mnt/disk3  ext4  defaults,noatime,nofail,x-systemd.device-timeout=90,x-systemd.mount-timeout=120  0  2
+UUID=fa3aa22d-1586-4bd6-9f16-bbf39294fbaa  /mnt/disk4  ext4  defaults,noatime,nofail,x-systemd.device-timeout=90,x-systemd.mount-timeout=120  0  2
+UUID=c1bfffdc-5977-49eb-81da-fcf713d14dfa  /mnt/disk5  ext4  defaults,noatime,nofail,x-systemd.device-timeout=90,x-systemd.mount-timeout=120  0  2
+UUID=b53a26bb-f914-45d8-b172-242e9ab4d3de  /mnt/disk6  ext4  defaults,noatime,nofail,x-systemd.device-timeout=90,x-systemd.mount-timeout=120  0  2
 
 # DAS system connected to tm via usbc (D4-320)
 # UUID=7f00925a-24d8-4aa4-9610-75a220f6f6c0 /mnt/das1 ext4 defaults 0 2
@@ -23,5 +23,5 @@ UUID=7ad28498-b19a-422a-9423-ce4f5e52eb5f /mnt/NVMe2 xfs defaults,noatime,nofail
 
 # The mergerfs Pool
 # This uses a wildcard to grab all disks and won't halt the boot if one is missing
-/mnt/disk* /mnt/storage mergerfs defaults,allow_other,cache.files=off,use_ino,category.create=mfs,minfreespace=100G,fsname=mergerfsPool,nonempty  0  0
+/mnt/disk*  /mnt/storage  mergerfs  defaults,nofail,allow_other,cache.files=off,use_ino,category.create=mfs,minfreespace=100G,fsname=mergerfsPool,nonempty,x-systemd.requires-mounts-for=/mnt/disk1,x-systemd.requires-mounts-for=/mnt/disk2,x-systemd.requires-mounts-for=/mnt/disk3,x-systemd.requires-mounts-for=/mnt/disk4,x-systemd.requires-mounts-for=/mnt/disk5,x-systemd.requires-mounts-for=/mnt/disk6  0  0
 
