@@ -6,6 +6,8 @@ the `home-dash2` energy dashboard, the trading platform and assorted web apps.
 
 ## Layout
 
+**Working on this? Read `AGENTS.md` then `docs/PROGRESS.md`.**
+
 | Path | Contents |
 |---|---|
 | `docs/` | Operational runbooks (backup/restore, maintenance, network, MAM automation, storage, …) |
