@@ -33,7 +33,8 @@ publish it as `floris.ownitguy.com.au` (behind Cloudflare Access,
 `poonfam.cloudflareaccess.com`). That tunnel was deleted in Cloudflare on
 2026-09-15. The container is still healthy on the leftover network, which was
 **deliberately not removed**: removing it would break
-`docker compose up` for lac-evidence-lens. Decide one of:
+`docker compose up` for lac-evidence-lens. **Container stopped 2026-09-15 at the user's request**
+(`docker compose stop`; restart policy `unless-stopped`, so it stays stopped across reboots). Its volumes and image are kept. Decide one of:
 - **Keep it public:** give it its own tunnel/cloudflared (new token passed via
   `TUNNEL_TOKEN` env, not command-line args), or add a hostname on the
   `local-expert-system` tunnel. Then rename the network off `theownitguy-*`.
