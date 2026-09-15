@@ -5,9 +5,15 @@ Newest entry first. Update this file as you work, then
 
 ---
 
-## Current state (as of 2026-09-08)
+## Current state (as of 2026-09-15)
 
-- **Immich**: migrated onto `/mnt/NVMe2` (DB + model-cache + 368 GB library).
+- **theownitguy-website**: **decommissioned 2026-09-15.** The public site
+  (`ownitguy.com.au`) is now hosted elsewhere, not on this box. Containers,
+  built image, compose folder and the `ownitguy-nas` Cloudflare tunnel are gone.
+  **Loose end:** `lac-evidence-lens` was published through that tunnel, so it
+  has no public route now. See IN PROGRESS.
+
+- **Immich** (as of 2026-09-08): migrated onto `/mnt/NVMe2` (DB + model-cache + 368 GB library).
   Healthy, verified. **Old copies still on disk pending soak** — see IN PROGRESS.
 - **mergerfs pool**: whole — 66 TB, all 6 disks. `/etc/fstab` race patched
   2026-09-08 (not yet tested across a reboot).
@@ -19,6 +25,22 @@ Newest entry first. Update this file as you work, then
 ---
 
 ## IN PROGRESS / pending verification
+
+### lac-evidence-lens has no public route (since 2026-09-15)
+`~/lac-evidence-lens/docker-compose.yml` joined the **external** network
+`theownitguy-website_ownitguy-tunnel` so the theownitguy `cloudflared` could
+publish it as `floris.ownitguy.com.au` (behind Cloudflare Access,
+`poonfam.cloudflareaccess.com`). That tunnel was deleted in Cloudflare on
+2026-09-15. The container is still healthy on the leftover network, which was
+**deliberately not removed**: removing it would break
+`docker compose up` for lac-evidence-lens. Decide one of:
+- **Keep it public:** give it its own tunnel/cloudflared (new token passed via
+  `TUNNEL_TOKEN` env, not command-line args), or add a hostname on the
+  `local-expert-system` tunnel. Then rename the network off `theownitguy-*`.
+- **Retire it:** `docker compose down` in `~/lac-evidence-lens`, then
+  `docker network rm theownitguy-website_ownitguy-tunnel`, and remove the
+  `floris` hostname / Access app in Cloudflare.
+
 
 ### Immich migration cleanup (blocked on soak)
 Migration done 2026-09-08 ~14:52 (~18 min downtime). Verified: 32018 assets,
@@ -49,6 +71,24 @@ cd ~ && cp docker-compose.yml.bak.premigrate.20260908-145232 docker-compose.yml
 docker compose -f docker-compose.yml up -d immich-server immich-machine-learning immich-power-tools redis database
 ```
 (old paths: `/mnt/storage/jez-photos`, `/jez-cache/immich/{postgres,model-cache}`)
+
+---
+
+## DONE 2026-09-15 — theownitguy-website decommissioned
+
+Site moved off-box (`ownitguy.com.au` verified serving different content;
+the NAS nginx had logged 0 requests).
+- User: `docker compose down --rmi local` in `~/theownitguy-website`; deleted
+  Cloudflare tunnel **ownitguy-nas** (`8a01d73e-…`), which invalidates its token.
+- Archived the source without `.env` → `~/theownitguy-website-archive-2026-09-15.tgz`
+  (24 files), then `rm -rf ~/theownitguy-website`.
+- Removed the tunnel token that had leaked into `~/.bash_history`.
+- Removed `compose/theownitguy-website/` and `env-examples/theownitguy-website.env.example`
+  from this repo.
+- `docker builder prune -f` (reclaimed 22.65 GB of build cache).
+- The other tunnel, `local-expert-system-cloudflared` (`10f5fef7-…`, created
+  2026-09-11, after the audit), is unaffected. It **still passes its token on the
+  command line** (visible in `docker inspect`) and runs cloudflared 2026.7.3.
 
 ---
 
@@ -103,7 +143,8 @@ docker compose -f docker-compose.yml up -d immich-server immich-machine-learning
   to the handful of ports actually used; rest via Tailscale.
 - **A4 / A9** Rotate the cleartext secrets in audit §11 (start with reused
   personal passwords `SIGEN_CLOUD_PASSWORD`, `MEROSS_PASSWORD`,
-  `TERRAMASTER_PASSWORD`); regenerate the Cloudflare tunnel token.
+  `TERRAMASTER_PASSWORD`). ~~Regenerate the theownitguy tunnel token~~, done
+  2026-09-15 (tunnel deleted). The `local-expert-system` tunnel token is still exposed in `docker inspect`.
 - **A5** arr apps have no auth from LAN (`DisabledForLocalAddresses`).
 
 ### Robustness

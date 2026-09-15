@@ -7,6 +7,13 @@ date: "2026-09-06"
 
 # 1. Executive summary
 
+> **Post-audit update 2026-09-15:** `theownitguy-website` (and its `cloudflared`
+> tunnel, `ownitguy-nas`) has been **decommissioned**; the site is hosted
+> elsewhere. References below describe the box as it was on 2026-09-06. A second
+> tunnel (`local-expert-system-cloudflared`) was added after this audit, and
+> `lac-evidence-lens` was also published via the deleted tunnel. See
+> `nas-admin/docs/PROGRESS.md`. The `.pdf` copy has not been regenerated.
+
 `terramaster` is a single Intel N95 mini-NAS (4 cores, 7.5 GiB RAM) running Ubuntu
 24.04 that has grown organically into a **41-container, 10-Docker-Compose-project**
 home server. It does four unrelated jobs at once:
