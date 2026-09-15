@@ -10,8 +10,7 @@ Newest entry first. Update this file as you work, then
 - **theownitguy-website**: **decommissioned 2026-09-15.** The public site
   (`ownitguy.com.au`) is now hosted elsewhere, not on this box. Containers,
   built image, compose folder and the `ownitguy-nas` Cloudflare tunnel are gone.
-  **Loose end:** `lac-evidence-lens` was published through that tunnel, so it
-  has no public route now. See IN PROGRESS.
+  `lac-evidence-lens` (floris), also published via that tunnel, is being retired. See IN PROGRESS.
 
 - **Immich** (as of 2026-09-08): migrated onto `/mnt/NVMe2` (DB + model-cache + 368 GB library).
   Healthy, verified. **Old copies still on disk pending soak** — see IN PROGRESS.
@@ -26,22 +25,19 @@ Newest entry first. Update this file as you work, then
 
 ## IN PROGRESS / pending verification
 
-### lac-evidence-lens has no public route (since 2026-09-15)
-`~/lac-evidence-lens/docker-compose.yml` joined the **external** network
-`theownitguy-website_ownitguy-tunnel` so the theownitguy `cloudflared` could
-publish it as `floris.ownitguy.com.au` (behind Cloudflare Access,
-`poonfam.cloudflareaccess.com`). That tunnel was deleted in Cloudflare on
-2026-09-15. The container is still healthy on the leftover network, which was
-**deliberately not removed**: removing it would break
-`docker compose up` for lac-evidence-lens. **Container stopped 2026-09-15 at the user's request**
-(`docker compose stop`; restart policy `unless-stopped`, so it stays stopped across reboots). Its volumes and image are kept. Decide one of:
-- **Keep it public:** give it its own tunnel/cloudflared (new token passed via
-  `TUNNEL_TOKEN` env, not command-line args), or add a hostname on the
-  `local-expert-system` tunnel. Then rename the network off `theownitguy-*`.
-- **Retire it:** `docker compose down` in `~/lac-evidence-lens`, then
-  `docker network rm theownitguy-website_ownitguy-tunnel`, and remove the
-  `floris` hostname / Access app in Cloudflare.
-
+### lac-evidence-lens (floris) — being removed, final deletes pending (2026-09-15)
+User chose to retire it. Cloudflare Access app removed by user; the `floris`
+DNS record (CNAME to the deleted tunnel, returns error 1033) should also be deleted.
+**Done:** `docker compose --profile tools down`; removed network
+`theownitguy-website_ownitguy-tunnel`. Rollback archives (no `.env`) in `~/archives/`:
+`lac-evidence-lens-source-2026-09-15.tgz`, `lac-evidence-lens-data-volume-2026-09-15.tgz`.
+**Still to run (agent harness blocked these deletes):**
+```
+docker image rm lac-evidence-lens-lac-evidence-lens lac-evidence-lens-ingest
+docker volume rm lac-evidence-lens_lac-data lac-evidence-lens_lac-claude-config
+rm -rf ~/lac-evidence-lens
+```
+Then revoke the secrets its `.env` held: `CLAUDE_CODE_OAUTH_TOKEN` and `GEMINI_API_KEY`.
 
 ### Immich migration cleanup (blocked on soak)
 Migration done 2026-09-08 ~14:52 (~18 min downtime). Verified: 32018 assets,
