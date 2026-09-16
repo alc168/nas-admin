@@ -1,0 +1,12 @@
+# SSH + sudo/auth events from journald (this box has no rsyslog / auth.log).
+source: journalctl
+journalctl_filter:
+  - "_SYSTEMD_UNIT=ssh.service"
+labels:
+  type: syslog
+---
+source: journalctl
+journalctl_filter:
+  - "SYSLOG_FACILITY=10"
+labels:
+  type: syslog

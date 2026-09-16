@@ -1,0 +1,139 @@
+// Grafana Alloy — log collector for terramaster (192.168.0.172).
+// Three sources: UniFi Dream Wall syslog, all Docker container logs, the host journal.
+// Everything is forwarded to the local Loki (service `loki`, same compose network).
+
+logging {
+  level  = "warn"
+  format = "logfmt"
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+  external_labels = {
+    host = "terramaster",
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 1. Syslog from the UniFi Dream Wall (192.168.0.250).
+//    Container listens on 1514; the host publishes 514/udp + 514/tcp to it.
+//    UniFi sends BSD-style syslog (RFC3164).
+// ---------------------------------------------------------------------------
+loki.relabel "syslog" {
+  forward_to = []
+
+  rule {
+    source_labels = ["__syslog_message_hostname"]
+    target_label  = "syslog_host"
+  }
+  rule {
+    source_labels = ["__syslog_message_app_name"]
+    target_label  = "app"
+  }
+  rule {
+    source_labels = ["__syslog_message_severity"]
+    target_label  = "severity"
+  }
+  rule {
+    source_labels = ["__syslog_message_facility"]
+    target_label  = "facility"
+  }
+}
+
+loki.source.syslog "network" {
+  listener {
+    address               = "0.0.0.0:1514"
+    protocol              = "udp"
+    syslog_format         = "rfc3164"
+    use_incoming_timestamp = false
+    labels                = { job = "syslog", source = "unifi" }
+  }
+
+  listener {
+    address               = "0.0.0.0:1514"
+    protocol              = "tcp"
+    syslog_format         = "rfc3164"
+    use_incoming_timestamp = false
+    labels                = { job = "syslog", source = "unifi" }
+  }
+
+  relabel_rules = loki.relabel.syslog.rules
+  forward_to    = [loki.write.default.receiver]
+}
+
+// ---------------------------------------------------------------------------
+// 2. Every Docker container on the box (~40 of them), labelled by name.
+//    Includes the remaining Cloudflare tunnel and every published app.
+// ---------------------------------------------------------------------------
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "30s"
+}
+
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  // "/plex2" -> "plex2"
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_log_stream"]
+    target_label  = "stream"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "compose_project"
+  }
+}
+
+loki.source.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  targets          = discovery.relabel.containers.output
+  labels           = { job = "docker" }
+  refresh_interval = "30s"
+  forward_to       = [loki.write.default.receiver]
+}
+
+// ---------------------------------------------------------------------------
+// 3. Host journal — sshd logins, sudo, systemd units, kernel.
+//    rsyslog is inactive on this box, so there is no /var/log/auth.log;
+//    journald is the only host log source.
+// ---------------------------------------------------------------------------
+loki.relabel "journal" {
+  forward_to = []
+
+  // loki.source.journal otherwise labels these with the component id.
+  rule {
+    target_label = "job"
+    replacement  = "journal"
+  }
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+  rule {
+    source_labels = ["__journal_syslog_identifier"]
+    target_label  = "ident"
+  }
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "severity"
+  }
+  rule {
+    source_labels = ["__journal__hostname"]
+    target_label  = "syslog_host"
+  }
+}
+
+loki.source.journal "host" {
+  path          = "/var/log/journal"
+  max_age       = "24h"
+  labels        = { job = "journal" }
+  relabel_rules = loki.relabel.journal.rules
+  forward_to    = [loki.write.default.receiver]
+}

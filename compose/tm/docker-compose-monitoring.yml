@@ -39,6 +39,8 @@ services:
     user: "1000:1000"
     volumes:
       - /home/tm/config/grafana:/var/lib/grafana
+      # Datasource provisioning (Loki added 2026-09-16).
+      - /home/tm/config/grafana-provisioning/datasources:/etc/grafana/provisioning/datasources:ro
     ports:
       - "3001:3000"
     environment:
@@ -81,6 +83,57 @@ services:
       - UP_PROMETHEUS_HTTP_LISTEN=0.0.0.0:9130
       - UP_PROMETHEUS_NAMESPACE=unpoller
       - UP_INFLUXDB_DISABLE=true
+      # UniFi events, alarms, anomalies and IDS/IPS hits -> Loki (log side).
+      # Prometheus keeps getting the metrics as before.
+      - UP_LOKI_URL=http://loki:3100
+      - UP_LOKI_VERIFY_SSL=false
+      - UP_LOKI_INTERVAL=2m
+      - UP_LOKI_TIMEOUT=30s
+    networks:
+      - monitoring
+
+  # --- Log storage + collection (added 2026-09-16) -------------------------
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    user: "1000:1000"
+    command: -config.file=/etc/loki/loki-config.yaml
+    volumes:
+      - /home/tm/config/loki:/etc/loki
+      - /mnt/NVMe2/loki:/loki
+    ports:
+      # Loopback only — Grafana reaches it over the compose network.
+      - "127.0.0.1:3100:3100"
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
+    # root: needs the docker socket, container log files and the host journal.
+    user: root
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - /home/tm/config/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /home/tm/data/alloy:/var/lib/alloy/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log/journal:/var/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+    ports:
+      # Syslog in from the UniFi Dream Wall (192.168.0.250).
+      - "514:1514/udp"
+      - "514:1514/tcp"
+      # Alloy's own UI — loopback only.
+      - "127.0.0.1:12345:12345"
+    restart: unless-stopped
+    depends_on:
+      - loki
     networks:
       - monitoring
 

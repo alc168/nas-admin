@@ -1,0 +1,10 @@
+name: local/lan-whitelist
+description: "Never ban the home LAN, the Docker bridges, or Tailscale."
+whitelist:
+  reason: "local networks"
+  cidr:
+    - "192.168.0.0/24"
+    - "172.16.0.0/12"
+    - "10.0.0.0/8"
+    - "100.64.0.0/10"
+    - "127.0.0.0/8"

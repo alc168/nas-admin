@@ -5,7 +5,15 @@ Newest entry first. Update this file as you work, then
 
 ---
 
-## Current state (as of 2026-09-15)
+## Current state (as of 2026-09-16)
+
+- **Logging stack is live** (2026-09-16): Loki + Grafana Alloy in the `tm` compose
+  project, CrowdSec as a host package. ~420 MB total. See "DONE 2026-09-16" below.
+  **Outstanding:** the Dream Wall is not yet sending syslog - that is a UI step for
+  the user (Settings -> Control Plane -> Integrations -> Activity Logging ->
+  192.168.0.172:514).
+
+## Earlier state (as of 2026-09-15)
 
 - **theownitguy-website**: **decommissioned 2026-09-15.** The public site
   (`ownitguy.com.au`) is now hosted elsewhere, not on this box. Containers,
@@ -68,6 +76,72 @@ cd ~ && cp docker-compose.yml.bak.premigrate.20260908-145232 docker-compose.yml
 docker compose -f docker-compose.yml up -d immich-server immich-machine-learning immich-power-tools redis database
 ```
 (old paths: `/mnt/storage/jez-photos`, `/jez-cache/immich/{postgres,model-cache}`)
+
+---
+
+## DONE 2026-09-16 - log collection + CrowdSec
+
+Goal: a searchable record of what happened, kept off the machines that generate it,
+on a 7.5 GiB box. Wazuh was rejected (needs 8 GB alone) - see the memory note below.
+
+**Loki** (`grafana/loki:latest`, service `loki` in `docker-compose-monitoring.yml`)
+- Config `~/config/loki/loki-config.yaml`; data on **`/mnt/NVMe2/loki`** (539 GB free),
+  deliberately not the OS SSD.
+- TSDB schema v13, filesystem store, **90-day retention** via the compactor.
+- Host port bound to **127.0.0.1:3100** only; Grafana reaches it over `tm_monitoring`.
+
+**Alloy** (`grafana/alloy:latest`, service `alloy`, runs as root)
+- Config `~/config/alloy/config.alloy`. Three sources:
+  1. **syslog** - container listens on 1514, host publishes **514/udp + 514/tcp**
+     (RFC3164, for the Dream Wall). Verified with a hand-sent test message.
+  2. **docker** - every container via the socket, labelled `container`,
+     `compose_project`, `stream`.
+  3. **journal** - `/var/log/journal`: sshd, sudo, systemd, kernel. rsyslog is NOT
+     installed on this box, so there is no `/var/log/auth.log`; journald is the only
+     host log source.
+- Gotcha: `loki.source.journal` labels streams with the component id unless a relabel
+  rule sets `job` - hence the explicit rule in the config.
+- First start replays historical container logs; Loki rejects anything older than
+  `reject_old_samples_max_age` (168h) with HTTP 400. One-time and harmless.
+
+**Grafana**
+- Loki datasource added by **provisioning file**
+  `~/config/grafana-provisioning/datasources/loki.yaml` (mounted read-only), not the
+  API: the admin password in `~/.env` no longer matches the running instance, so API
+  auth returns 401. Audit finding A1 may therefore be partly addressed; the real
+  password is not known to this repo.
+
+**unpoller**
+- `UP_LOKI_URL=http://loki:3100` added so UniFi events/alarms/anomalies/IDS hits reach
+  Loki. **BUT** unpoller cannot authenticate to the controller:
+  `https://192.168.0.250/api/auth/login` returns 500 "authentication failed" for user
+  `prometheus`, and only 2 `unpoller_` metrics are exposed. This predates today's
+  change (it was serving a "last good snapshot"). **Open task:** fix or recreate that
+  local UniFi account. Until then UniFi data arrives only via syslog.
+
+**CrowdSec** (host package, NOT a container - the image has no `journalctl`, and with
+no auth.log on this box a container cannot read host logs)
+- Official packagecloud repo (Ubuntu universe only carries 1.4.6); installed **1.8.1**.
+- LAPI moved to **127.0.0.1:8090** - port 8080 is qbittorrent-nox.
+- Acquisition `/etc/crowdsec/acquis.d/journald.yaml`: `ssh.service` + syslog facility 10.
+- Whitelist `/etc/crowdsec/parsers/s02-enrich/lan-whitelist.yaml`: LAN, Docker,
+  Tailscale, loopback - so it can never ban you off your own network.
+- **Detect-only: no bouncer installed.** Nothing is blocked yet. Deliberate: there is
+  no host firewall, and a bad rule could lock out SSH.
+- Verified: the ssh.service source reads and parses; the whitelist fires on LAN IPs.
+
+**Memory after all of this** (the constraint behind every choice):
+`loki` ~125 MB + `alloy` ~121 MB + `crowdsec` ~172 MB = **~420 MB**, against ~4.1 GB
+available. Wazuh alone wanted 8 GB. The F6-424 has 2 SO-DIMM slots (64 GB max) if that
+ever needs revisiting.
+
+**Next:**
+- User: point the Dream Wall's Activity Logging at `192.168.0.172:514`, and enable the
+  free-tier Intrusion Prevention.
+- Grafana alert rules: failed SSH, new SSH key, unexpected container start, IPS hit,
+  sudden drop in log volume.
+- Decide on a CrowdSec bouncer once a host firewall exists.
+- Back up `/mnt/NVMe2/loki` off-box, so the logs outlive the machine they describe.
 
 ---
 
