@@ -148,7 +148,7 @@ unpoller:
   environment:
     - UP_UNIFI_DEFAULT_URL=https://192.168.0.250
     - UP_UNIFI_DEFAULT_USER=prometheus
-    - UP_UNIFI_DEFAULT_PASS=mr8Sv3lJZYl6Rnlc
+    - UP_UNIFI_DEFAULT_PASS=${UP_UNIFI_DEFAULT_PASS}   # real value lives in ~/.env, never here
     - UP_UNIFI_DEFAULT_VERIFY_SSL=false
     - UP_UNIFI_DEFAULT_SAVE_SITES=true
     - UP_UNIFI_DEFAULT_SAVE_DPI=true
@@ -180,7 +180,7 @@ unpoller:
   environment:
     - UP_UNIFI_DEFAULT_URL=https://192.168.0.250
     - UP_UNIFI_DEFAULT_USER=prometheus
-    - UP_UNIFI_DEFAULT_PASS=Sxm5jXJh@#$g@3Gt
+    - UP_UNIFI_DEFAULT_PASS=${UP_UNIFI_DEFAULT_PASS}   # real value lives in ~/.env, never here
     - UP_UNIFI_DEFAULT_VERIFY_SSL=false
     - UP_PROMETHEUS_HTTP_LISTEN=0.0.0.0:9130
     - UP_PROMETHEUS_NAMESPACE=unpoller
