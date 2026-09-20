@@ -111,6 +111,20 @@ on a 7.5 GiB box. Wazuh was rejected (needs 8 GB alone) - see the memory note be
   auth returns 401. Audit finding A1 may therefore be partly addressed; the real
   password is not known to this repo.
 
+**unpoller — STOPPED 2026-09-20.** Root cause found: the UniFi local admin `prometheus`
+was rejected by the controller (existing user, refused password; a bogus user returns a
+different error code). Prometheus last recorded UniFi data **2026-07-29 15:17**. The user
+has now **deleted** that UniFi account and will create a new one later. Container stopped
+(`docker compose -p tm -f docker-compose-monitoring.yml stop unpoller`); restart policy is
+unless-stopped so it stays down. Prometheus keeps scraping the dead target — expect
+`up{job="unpoller"}==0` until it is restarted.
+**When the new UniFi account exists:** local-access-only admin, Viewer on the Network app,
+no 2FA; put the password in `~/.env` as `UP_UNIFI_DEFAULT_PASS`, then
+`docker compose -p tm -f docker-compose-monitoring.yml start unpoller`.
+**Secret hygiene:** the OLD password is in cleartext in
+`~/docker-compose-monitoring.yml.bak.20260729054254` and in
+`nas-admin/docs/NETWORK_MONITORING.md` (pushed to GitHub). Dead now, but scrub both.
+
 **unpoller**
 - `UP_LOKI_URL=http://loki:3100` added so UniFi events/alarms/anomalies/IDS hits reach
   Loki. **BUT** unpoller cannot authenticate to the controller:
